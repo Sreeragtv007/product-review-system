@@ -19,6 +19,12 @@ class ReviewSerializer(serializers.ModelSerializer):
             model = Review
             fields = ['id', 'product', 'user', 'rating', 'feedback']
             read_only_fields = ['user']
+        def validate_rating(self, value):
+            if value > 5:
+                raise serializers.ValidationError("Rating must be 5 or below.")
+            if value < 1:
+                raise serializers.ValidationError("Rating must be at least 1.")
+            return value
 
 
 class ProductSerializer(serializers.ModelSerializer):

@@ -3,10 +3,11 @@ from rest_framework.views import APIView
 from .serializers import ReviewSerializer, UserSerializer, ProductSerializer
 from rest_framework.response import Response
 from rest_framework import status, permissions
-from django.contrib.auth import authenticate, login, logout
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Product, Review
+from rest_framework.authtoken.models import Token
+from rest_framework.authtoken.views import ObtainAuthToken
 
 
 # Create your views here.
@@ -17,34 +18,29 @@ class RegisterView(APIView):
         serializer = UserSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
-            return Response({"message": "user registration sucess"}, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            token, _ = Token.objects.get_or_create(user=user)
+            return Response({'token': token.key}, status=201)
+        return Response(serializer.errors, status=400)
 
 
-class LoginView(APIView):
-    permission_classes = [permissions.AllowAny]
+class CustomLoginView(ObtainAuthToken):
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        token = Token.objects.get(key=response.data['token'])
+        return Response({
+            'token': token.key,
+            'username': token.user.username,
+            'role': 'admin' if token.user.is_staff else 'regular'
+        })
 
-    def post(self, request):
-        username = request.data.get("username")
-        password = request.data.get("password")
-
-        user = authenticate(request, username=username, password=password)
-
-        if user is not None:
-            login(request, user)
-            return Response({"message": "Login successful", "username": user.username}, status=status.HTTP_202_ACCEPTED)
-        else:
-            return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+        
 
 
-class LogoutView(APIView):
-    def post(self, request):
-        logout(request)
-        return Response({"message": "Logout successful"}, status=status.HTTP_200_OK)
+
 
 
 class ProductListCreateAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     def get(self, request):
         products = Product.objects.all()
@@ -87,33 +83,39 @@ class ProductDetailAPIView(APIView):
             return Response({'detail': 'Only admins can delete products.'}, status=status.HTTP_403_FORBIDDEN)
         product = self.get_object(pk)
         product.delete()
-        return Response(status=204)
+        return Response({"message":"product deleted sucessfully"},status=status.HTTP_200_OK)
 
 
 class ReviewCreateAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        if request.user.is_staff:
-            return Response({'detail': 'Admins cannot submit reviews.'}, status=status.HTTP_403_FORBIDDEN)
+        # if request.user.is_staff:
+        #     return Response({'detail': 'Admins cannot submit reviews.'}, status=status.HTTP_403_FORBIDDEN)
 
-        product_id = request.data.get('product')
+        product_id = int(request.data['product'])
+        
+        
         if not product_id:
             return Response({'detail': 'Product ID is required'}, status=status.HTTP_400_BAD_REQUEST)
 
         if Review.objects.filter(product_id=product_id, user=request.user).exists():
-            return Response({'detail': 'You already reviewed this product.'}, status=status.HTTP_400_BAD_REQUEST0)
+            return Response({'detail': 'You already reviewed this product.'}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = ReviewSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(user=request.user, product_id=product_id)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
+
 class ProductReviewListAPIView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request, product_id):
         reviews = Review.objects.filter(product_id=product_id)
         serializer = ReviewSerializer(reviews, many=True)
-        return Response(serializer.data,status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
