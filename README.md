@@ -1,4 +1,9 @@
 Clone the repository : git clone   https://github.com/Sreeragtv007/product-review-system.git
+
+
+
+
+
 Navigate to the project directory
 
 create a virtual environment: virtualenv env
