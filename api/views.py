@@ -95,7 +95,7 @@ class ProductDetailAPIView(APIView):
 
 
 class ReviewCreateAPIView(APIView):
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
         if request.user.is_staff:
