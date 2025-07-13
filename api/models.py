@@ -14,3 +14,15 @@ class Product(models.Model):
 
     def average_rating(self):
         return self.reviews.aggregate(models.Avg('rating'))['rating__avg'] or 0
+    
+    
+    
+    
+class Review(models.Model):
+    product = models.ForeignKey(Product, related_name='reviews', on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    rating = models.IntegerField()
+    feedback = models.TextField()
+
+    class Meta:
+        unique_together = ('product', 'user')
