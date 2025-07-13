@@ -33,11 +33,6 @@ class CustomLoginView(ObtainAuthToken):
             'role': 'admin' if token.user.is_staff else 'regular'
         })
 
-        
-
-
-
-
 
 class ProductListCreateAPIView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -46,15 +41,6 @@ class ProductListCreateAPIView(APIView):
         products = Product.objects.all()
         serializer = ProductSerializer(products, many=True)
         return Response(serializer.data)
-
-    def post(self, request):
-        if not request.user.is_staff:
-            return Response({'detail': 'Only admins can add products.'}, status=status.HTTP_403_FORBIDDEN)
-        serializer = ProductSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(created_by=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ProductDetailAPIView(APIView):
@@ -68,9 +54,18 @@ class ProductDetailAPIView(APIView):
         serializer = ProductSerializer(product)
         return Response(serializer.data)
 
+    def post(self, request):
+        if not request.user.is_staff:
+            return Response({'message': 'Only admins can add products.'}, status=status.HTTP_403_FORBIDDEN)
+        serializer = ProductSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(created_by=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     def put(self, request, pk):
         if not request.user.is_staff:
-            return Response({'detail': 'Only admins can update products.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'message': 'Only admins can update products.'}, status=status.HTTP_400_BAD_REQUEST)
         product = self.get_object(pk)
         serializer = ProductSerializer(product, data=request.data)
         if serializer.is_valid():
@@ -78,29 +73,41 @@ class ProductDetailAPIView(APIView):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    def patch(self, request, pk):
+        if not request.user.is_staff:
+            return Response({'message': 'Only admins can update products.'}, status=status.HTTP_400_BAD_REQUEST)
+        product = self.get_object(pk)
+        if not product:
+            return Response({"message": " Product Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = ReviewSerializer(product, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     def delete(self, request, pk):
         if not request.user.is_staff:
-            return Response({'detail': 'Only admins can delete products.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'message': 'Only admins can delete products.'}, status=status.HTTP_403_FORBIDDEN)
         product = self.get_object(pk)
         product.delete()
-        return Response({"message":"product deleted sucessfully"},status=status.HTTP_200_OK)
+        return Response({"message": "product deleted sucessfully"}, status=status.HTTP_200_OK)
 
 
 class ReviewCreateAPIView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        # if request.user.is_staff:
-        #     return Response({'detail': 'Admins cannot submit reviews.'}, status=status.HTTP_403_FORBIDDEN)
+        if request.user.is_staff:
+            return Response({'message': 'Admins cannot submit reviews.'}, status=status.HTTP_403_FORBIDDEN)
 
         product_id = int(request.data['product'])
-        
-        
+
         if not product_id:
-            return Response({'detail': 'Product ID is required'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'message': 'Product ID is required'}, status=status.HTTP_400_BAD_REQUEST)
 
         if Review.objects.filter(product_id=product_id, user=request.user).exists():
-            return Response({'detail': 'You already reviewed this product.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'message': 'You already reviewed this product.'}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = ReviewSerializer(data=request.data)
         if serializer.is_valid():
@@ -116,6 +123,3 @@ class ProductReviewListAPIView(APIView):
         reviews = Review.objects.filter(product_id=product_id)
         serializer = ReviewSerializer(reviews, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-
