@@ -119,7 +119,7 @@ class ReviewCreateAPIView(APIView):
 class ProductReviewListAPIView(APIView):
     permission_classes = [permissions.AllowAny]
 
-    def get(self, request, product_id):
-        reviews = Review.objects.filter(product_id=product_id)
+    def get(self, request,pk):
+        reviews = Review.objects.filter(product_id=pk)
         serializer = ReviewSerializer(reviews, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
