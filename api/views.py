@@ -53,12 +53,12 @@ class ProductListCreateAPIView(APIView):
 
     def post(self, request):
         if not request.user.is_staff:
-            return Response({'detail': 'Only admins can add products.'}, status=403)
+            return Response({'detail': 'Only admins can add products.'}, status=status.HTTP_403_FORBIDDEN)
         serializer = ProductSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(created_by=request.user)
-            return Response(serializer.data, status=201)
-        return Response(serializer.errors, status=400)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ProductDetailAPIView(APIView):
@@ -74,23 +74,24 @@ class ProductDetailAPIView(APIView):
 
     def put(self, request, pk):
         if not request.user.is_staff:
-            return Response({'detail': 'Only admins can update products.'}, status=403)
+            return Response({'detail': 'Only admins can update products.'}, status=status.HTTP_400_BAD_REQUEST)
         product = self.get_object(pk)
         serializer = ProductSerializer(product, data=request.data)
         if serializer.is_valid():
             serializer.save(created_by=request.user)
             return Response(serializer.data)
-        return Response(serializer.errors, status=400)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
         if not request.user.is_staff:
-            return Response({'detail': 'Only admins can delete products.'}, status=403)
+            return Response({'detail': 'Only admins can delete products.'}, status=status.HTTP_403_FORBIDDEN)
         product = self.get_object(pk)
         product.delete()
         return Response(status=204)
 
-    class ReviewCreateAPIView(APIView):
-        permission_classes = [permissions.IsAuthenticated]
+
+class ReviewCreateAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
         if request.user.is_staff:
@@ -108,3 +109,11 @@ class ProductDetailAPIView(APIView):
             serializer.save(user=request.user, product_id=product_id)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class ProductReviewListAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, product_id):
+        reviews = Review.objects.filter(product_id=product_id)
+        serializer = ReviewSerializer(reviews, many=True)
+        return Response(serializer.data,status=status.HTTP_200_OK)
